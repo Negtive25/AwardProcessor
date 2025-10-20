@@ -1,0 +1,14 @@
+# Maven
+target/
+
+# Logs
+*.log
+logs/
+
+# IDE files
+.idea/
+*.iml
+*.iws
+
+# System files
+.DS_Store
