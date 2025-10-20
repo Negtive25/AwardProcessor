@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.code.certificateProcessor.mapper.StandardAwardMapper">
+    <insert id="addBatchStandardAward" parameterType="List">
+        insert into standard_award(standardAwardId,name,category,level,score,createdBy,updatedBy)
+        values
+        <foreach item="item" collection="list" separator="," index="index">
+            (#{item.standardAwardId},#{item.name},#{item.category},#{item.level},#{item.score},#{item.createdBy},#{item.updatedBy})
+        </foreach>
+    </insert>
+
+    <update id="updateBatchStandardAward" parameterType="List">
+        <foreach collection="list" item="item" separator=";">
+            update standard_award
+            <set>
+                <if test="item.name != null">
+                    name = #{item.name},
+                </if>
+                <if test="item.category != null">
+                    category = #{item.category},
+                </if>
+                <if test="item.level != null">
+                    level = #{item.level},
+                </if>
+                <if test="item.score != null">
+                    score = #{item.score},
+                </if>
+                <if test="item.updatedBy != null">
+                    updatedBy = #{item.updatedBy},
+                </if>
+            </set>
+            where standardAwardId = #{item.standardAwardId}
+        </foreach>
+    </update>
+
+    <delete id="deleteStandardAward" parameterType="String">
+        delete from standard_award where standardAwardId = #{standardAwardId}
+    </delete>
+    
+    <select id="getAwardsByBatchId" parameterType="List" resultType="StandardAward">
+        select standardAwardId,name,category,level,score
+        from standard_award
+        where standardAwardId in
+        <foreach collection="list" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        and isActive = true
+    </select>
+</mapper>

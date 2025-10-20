@@ -1,0 +1,156 @@
+package org.com.code.certificateProcessor.rocketMQ.consumer;
+
+import org.com.code.certificateProcessor.LangChain4j.agent.AwardClassification;
+import org.com.code.certificateProcessor.LangChain4j.agent.ClassificationAgent;
+import org.com.code.certificateProcessor.LangChain4j.modelInfo.DeduplicationResult;
+import org.com.code.certificateProcessor.mapper.StandardAwardMapper;
+import org.com.code.certificateProcessor.pojo.AwardSubmission;
+import org.com.code.certificateProcessor.pojo.StandardAward;
+import org.com.code.certificateProcessor.pojo.enums.ContentType;
+import com.alibaba.fastjson.JSONObject;
+import dev.langchain4j.exception.LangChain4jException;
+import org.apache.rocketmq.spring.annotation.MessageModel;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.com.code.certificateProcessor.ElasticSearch.Service.ElasticUtil;
+import org.com.code.certificateProcessor.LangChain4j.modelInfo.AwardInfo;
+import org.com.code.certificateProcessor.LangChain4j.service.EmbeddingService;
+import org.com.code.certificateProcessor.LangChain4j.service.MultiModelService;
+import org.com.code.certificateProcessor.mapper.AwardSubmissionMapper;
+import org.com.code.certificateProcessor.pojo.enums.AwardSubmissionStatus;
+import org.com.code.certificateProcessor.rocketMQ.MQConstants;
+import org.com.code.certificateProcessor.service.file.FileManageService;
+import org.com.code.certificateProcessor.util.OssImageCompressor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+@Component
+@RocketMQMessageListener(topic = MQConstants.Topic.SUBMISSION,
+        consumerGroup = MQConstants.Consumer.STUDENT_AWARD_SUBMISSION_CONSUMER,
+        selectorExpression = MQConstants.Tag.STUDENT_AWARD_SUBMISSION,
+        messageModel = MessageModel.CLUSTERING
+)
+public class studentAwardSubmissionConsumer implements RocketMQListener<String> {
+    @Autowired
+    private EmbeddingService embeddingService;
+    @Autowired
+    private MultiModelService multiModelService;
+    @Autowired
+    private AwardSubmissionMapper awardSubmissionMapper;
+    @Autowired
+    private RedisTemplate<String, Object> objectRedisTemplate;
+    @Autowired
+    private ElasticUtil elasticUtil;
+    @Autowired
+    private StandardAwardMapper standardAwardMapper;
+    @Autowired
+    @Qualifier("ClassificationAgent")
+    private ClassificationAgent classificationAgent;
+
+    private static final int CANDIDATE_AWARD_NUM = 5;
+
+    @Override
+    public void onMessage(String completeUploadInfoJsonMessage) {
+        /**
+         * completeUploadInfo 包含:
+         * String imageUrl ,String submissionId ,AwardSubmissionStatus status
+         */
+        Map<String, Object> completeUploadInfo = JSONObject.parseObject(completeUploadInfoJsonMessage, Map.class);
+        String submissionId = completeUploadInfo.get("submissionId").toString();
+        /**
+         * 记录文件是否临时被撤销的 key
+         * 当 IfSubmissionGotRevoked uploadId 0   代表文件正常
+         * 当 IfSubmissionGotRevoked uploadId 1   代表文件被撤销
+         */
+        String ifSubmissionGotRevoked = (String) objectRedisTemplate.opsForHash().get(FileManageService.IfSubmissionGotRevoked,submissionId);
+        if(ifSubmissionGotRevoked.equals("1")){
+            objectRedisTemplate.opsForHash().delete(FileManageService.IfSubmissionGotRevoked,submissionId);
+            return;
+        }
+
+        String imageUrl = completeUploadInfo.get("imageUrl").toString();
+        String compressedImageURL = OssImageCompressor.getAdaptiveCompressedUrl(imageUrl);
+
+        AwardInfo awardInfo;
+        try {
+            awardInfo = multiModelService.extractWordFromPicture(compressedImageURL);
+        } catch (Exception e) {
+            throw new LangChain4jException("视觉模型分析图片发生错误", e);
+        }
+
+
+        if(awardInfo.getIfCertification().equals("No")){
+            awardSubmissionMapper.updateAwardSubmission(Map.of(
+                    "submissionId",completeUploadInfo.get("submissionId"),
+                    "status", AwardSubmissionStatus.AI_REJECTED,
+                    "ocrFullText",awardInfo.toMap(),
+                    "rejectionReason", "不是一个奖项"));
+        }else if(awardInfo.getStudentName() == null||!awardInfo.getStudentName().equals(completeUploadInfo.get("studentName"))){
+            awardSubmissionMapper.updateAwardSubmission(Map.of(
+                    "submissionId",completeUploadInfo.get("submissionId"),
+                    "status", AwardSubmissionStatus.AI_REJECTED,
+                    "ocrFullText",awardInfo.toMap(),
+                    "rejectionReason","图片中没有出现学生姓名或者学生姓名不匹配"));
+        }
+        else{
+            /**
+             * 如果是奖状，则 awardInfo 包含以下字段信息
+             *     {
+             *       "studentName": "学生姓名",
+             *       "awardName": "标准奖项名称"
+             *       "awardDate": "2025年12月9日"
+             *       "ifCertification":"Yes"
+             *     }
+             */
+
+            float[] embedding = embeddingService.getEmbedding(awardInfo.getAwardName());
+            List<String> rankedAwardIds;
+            try {
+                rankedAwardIds = elasticUtil.hybridSearch(awardInfo.getAwardName(), ContentType.STANDARD_AWARD, List.of("awardName"));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            List<String> candidateAwardIds = rankedAwardIds.stream().limit(CANDIDATE_AWARD_NUM).toList();
+            List<StandardAward> standardAwards = standardAwardMapper.getAwardsByBatchId(candidateAwardIds);
+
+            AwardClassification awardClassification =classificationAgent.classifyAward(awardInfo,standardAwards);
+
+            if(!awardClassification.getMatchFound()){
+                awardSubmissionMapper.updateAwardSubmission(Map.of(
+                        "submissionId",completeUploadInfo.get("submissionId"),
+                        "status", AwardSubmissionStatus.AI_REJECTED,
+                        "ocrFullText",awardInfo.toMap(),
+                        "rejectionReason","没有匹配的奖项"));
+            }
+
+            List<AwardSubmission> awardSubmissions = awardSubmissionMapper.getSubmissionByMatchedAwardId(
+                    awardClassification.getMatchedAwardId(),
+                    completeUploadInfo.get("studentId").toString()
+            );
+
+            DeduplicationResult deduplicationResult = classificationAgent.checkForDuplicate(awardInfo,awardSubmissions);
+            if(deduplicationResult.getDuplicated()){
+                awardSubmissionMapper.updateAwardSubmission(Map.of(
+                        "submissionId",completeUploadInfo.get("submissionId"),
+                        "status", AwardSubmissionStatus.AI_REJECTED,
+                        "ocrFullText",awardInfo.toMap(),
+                        "duplicateCheckResult",deduplicationResult.getDuplicated(),
+                        "rejectionReason",deduplicationResult.getReasoning()));
+            } else{
+                List<Map<String, Object>> standardAwardList = standardAwards.stream().map(StandardAward::toMap).toList();
+                awardSubmissionMapper.updateAwardSubmission(Map.of(
+                        "submissionId",completeUploadInfo.get("submissionId"),
+                        "status", AwardSubmissionStatus.AI_APPROVED,
+                        "ocrFullText",awardInfo.toMap(),
+                        "matchedAwardId",awardClassification.getMatchedAwardId(),
+                        "aiSuggestion","可能匹配的奖项:\n"+standardAwards));
+            }
+        }
+    }
+}
