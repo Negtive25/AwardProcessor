@@ -16,11 +16,6 @@ public class PasswordValidator implements ConstraintValidator<ValidPassword, Str
     // .* - 匹配任意字符
     private static final String PASSWORD_PATTERN = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).*$";
 
-    @Override
-    public void initialize(ValidPassword constraintAnnotation) {
-        // 可以在这里获取注解上的属性（如果定义了的话），进行初始化
-    }
-
     /**
      * 核心验证逻辑
      *

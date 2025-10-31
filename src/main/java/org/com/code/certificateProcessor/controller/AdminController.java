@@ -5,27 +5,28 @@ import org.checkerframework.common.value.qual.EnumVal;
 import org.com.code.certificateProcessor.pojo.Admin;
 import org.com.code.certificateProcessor.pojo.AwardSubmission;
 import org.com.code.certificateProcessor.pojo.Student;
-import org.com.code.certificateProcessor.pojo.dto.request.CreateAdminRequest;
-import org.com.code.certificateProcessor.pojo.dto.request.CursorPageRequest;
-import org.com.code.certificateProcessor.pojo.dto.request.ReviewSubmissionRequest;
-import org.com.code.certificateProcessor.pojo.dto.request.SignInAdminRequest;
+import org.com.code.certificateProcessor.pojo.dto.groupInterface.CreateGroup;
+import org.com.code.certificateProcessor.pojo.dto.groupInterface.SignInGroup;
+import org.com.code.certificateProcessor.pojo.dto.groupInterface.UpdateGroup;
+import org.com.code.certificateProcessor.pojo.dto.request.*;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
 import org.com.code.certificateProcessor.pojo.enums.Auth;
 import org.com.code.certificateProcessor.pojo.enums.AwardSubmissionStatus;
 import org.com.code.certificateProcessor.responseHandler.ResponseHandler;
 import org.com.code.certificateProcessor.service.admin.AdminService;
 import org.com.code.certificateProcessor.service.awardSubmission.AwardSubmissionService;
-import org.com.code.certificateProcessor.service.standardAward.StandardAwardService;
 import org.com.code.certificateProcessor.service.student.StudentService;
 import org.com.code.certificateProcessor.validation.ValidEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
+@Validated
 public class AdminController {
     @Autowired
     private AdminService adminService;
@@ -36,20 +37,19 @@ public class AdminController {
 
     @PostMapping("/signUp")
     public ResponseHandler signUp(
-            // 这个 @Valid 是必须的，它负责触发上面 DTO 中所有规则的检查
-            @Valid @RequestBody CreateAdminRequest createAdminRequest) {
+            @Validated(CreateGroup.class) @RequestBody AdminRequest adminRequest) {
         Admin admin = new Admin();
-        admin.setUsername(createAdminRequest.getUsername());
-        admin.setPassword(createAdminRequest.getPassword());
-        admin.setFullName(createAdminRequest.getFullName());
+        admin.setUsername(adminRequest.getUsername());
+        admin.setPassword(adminRequest.getPassword());
+        admin.setFullName(adminRequest.getFullName());
         admin.setAuth(Auth.ADMIN.getType());
         adminService.addAdmin(admin);
         return new ResponseHandler(ResponseHandler.SUCCESS, "注册成功");
     }
     @PostMapping("/signIn")
-    public ResponseHandler signIn(@Valid @RequestBody SignInAdminRequest signInAdminRequest) {
-        String token = adminService.adminSignIn(signInAdminRequest.getUsername(),
-                signInAdminRequest.getPassword());
+    public ResponseHandler signIn(@Validated(SignInGroup.class) @RequestBody AdminRequest adminRequest) {
+        String token = adminService.adminSignIn(adminRequest.getUsername(),
+                adminRequest.getPassword());
         return new ResponseHandler(ResponseHandler.SUCCESS, "登录成功,获取token", token);
     }
     @GetMapping("/me")
@@ -67,9 +67,9 @@ public class AdminController {
      */
     @GetMapping("/getSubmissionProgress")
     public ResponseHandler getSubmissionProgress(@Valid @RequestBody CursorPageRequest cursorPageRequest,
-                                                 @ValidEnum(enumClass = AwardSubmissionStatus.class)
-                                                 @RequestParam AwardSubmissionStatus status) {
-        CursorPageResponse<AwardSubmission> submissionProgress = awardSubmissionService.cursorQuerySubmissionByStatus(cursorPageRequest.getLastId(), cursorPageRequest.getPageSize(), status.toString());
+                                                 @RequestParam List<@ValidEnum(enumClass = AwardSubmissionStatus.class) String> status) {
+        CursorPageResponse<AwardSubmission> submissionProgress =
+                awardSubmissionService.cursorQuerySubmissionByStatus(cursorPageRequest.getLastId(), cursorPageRequest.getPageSize(), null,status);
         return new ResponseHandler(ResponseHandler.SUCCESS, "获取"+status+"进度成功", submissionProgress);
     }
 
@@ -81,7 +81,15 @@ public class AdminController {
 
     @GetMapping("/getStudentInfo")
     public ResponseHandler getStudentInfo(@Valid @RequestBody CursorPageRequest cursorPageRequest) {
-        CursorPageResponse<Student> submissionProgress = studentService.cursorQueryStudent(cursorPageRequest.getLastId(), cursorPageRequest.getPageSize(), null);
+        CursorPageResponse<Student> submissionProgress = studentService.cursorQueryStudent(cursorPageRequest.getLastId(), cursorPageRequest.getPageSize());
         return new ResponseHandler(ResponseHandler.SUCCESS, "获取学生信息成功", submissionProgress);
     }
+
+    @PutMapping("/updateInfo")
+    public ResponseHandler updateInfo(@Validated(UpdateGroup.class) @RequestBody AdminRequest adminRequest) {
+
+        return new ResponseHandler(ResponseHandler.SUCCESS, "更新学生信息成功");
+    }
+
+    
 }

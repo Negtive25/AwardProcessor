@@ -62,17 +62,26 @@
             <version>2.17.0</version>
         </dependency>
 
-        <!-- Langchain4j调用模型依赖 -->
+        <!-- 核心框架 -->
+        <!-- https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-core -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-easy-rag</artifactId>
-            <version>1.0.0-beta3</version>
+            <artifactId>langchain4j-core</artifactId>
+            <version>1.7.1</version>
         </dependency>
 
+        <!-- Spring Boot Starter，用于自动注入 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-spring-boot-starter</artifactId>
+            <version>1.7.1-beta14</version>
+        </dependency>
+
+        <!-- 阿里百炼 DashScope 接入 -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-community-dashscope-spring-boot-starter</artifactId>
-            <version>1.0.0-beta3</version>
+            <version>1.7.1-beta14</version>
         </dependency>
 
         <dependency>

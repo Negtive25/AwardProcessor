@@ -4,6 +4,7 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
+import org.com.code.certificateProcessor.LangChain4j.config.AgentConfig;
 import org.com.code.certificateProcessor.exeption.AIModelException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,9 +17,13 @@ import java.util.stream.Collectors;
 
 @Service
 public class EmbeddingService {
+    private final EmbeddingModel embeddingModel;
+
     @Autowired
-    @Qualifier("EmbeddingModel")
-    private EmbeddingModel embeddingModel;
+    public EmbeddingService(AgentConfig agentConfig) {
+        this.embeddingModel = agentConfig.builder()
+                .embeddingModel(AgentConfig.textEmbeddingModel);
+    }
 
     /**
      * 单文本向量化方法

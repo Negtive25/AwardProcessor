@@ -24,13 +24,10 @@ spring:
     dashscope:
       api-key:
         ${DASH_SCOPE_API_KEY}
-      text-embeddingModel:
-        text-embedding-v4
-      chatVLModel:
-        qwen3-vl-flash
-      chatModel:
-        qwen-flash
-
+  jackson:
+    # 当属性值为null时，不序列化该属性
+    # null 字段不会传给 ES，不会覆盖或清空旧值
+    default-property-inclusion: non_null
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -39,13 +36,12 @@ mybatis:
 rocketmq:
   name-server: localhost:9876
 
-
 aliyun:
   oss:
-    endpoint: oss-cn-fuzhou.aliyuncs.com
+    endpoint: ${ALIYUN_OSS_ENDPOINT}
     accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID}
     accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
-    bucketName: sk8erboi
+    bucketName: ${ALIYUN_OSS_BUCKET_NAME}
     bucketDomain: ${ALIYUN_OSS_BUCKET_DOMAIN}
 
 

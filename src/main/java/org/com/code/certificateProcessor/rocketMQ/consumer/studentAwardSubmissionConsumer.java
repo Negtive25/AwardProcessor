@@ -1,9 +1,10 @@
 package org.com.code.certificateProcessor.rocketMQ.consumer;
 
 import org.apache.rocketmq.common.message.MessageExt;
-import org.com.code.certificateProcessor.LangChain4j.agent.AwardClassification;
-import org.com.code.certificateProcessor.LangChain4j.agent.ClassificationAgent;
+import org.com.code.certificateProcessor.LangChain4j.modelInfo.AwardClassification;
 import org.com.code.certificateProcessor.LangChain4j.modelInfo.DeduplicationResult;
+import org.com.code.certificateProcessor.LangChain4j.service.ClassificationService;
+import org.com.code.certificateProcessor.LangChain4j.service.OCRService;
 import org.com.code.certificateProcessor.exeption.RocketmqException;
 import org.com.code.certificateProcessor.mapper.StandardAwardMapper;
 import org.com.code.certificateProcessor.mapper.StudentMapper;
@@ -17,19 +18,19 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.com.code.certificateProcessor.ElasticSearch.Service.ElasticUtil;
 import org.com.code.certificateProcessor.LangChain4j.modelInfo.AwardInfo;
-import org.com.code.certificateProcessor.LangChain4j.service.MultiModelService;
+import dev.langchain4j.data.image.Image;
 import org.com.code.certificateProcessor.mapper.AwardSubmissionMapper;
 import org.com.code.certificateProcessor.pojo.enums.AwardSubmissionStatus;
 import org.com.code.certificateProcessor.rocketMQ.MQConstants;
 import org.com.code.certificateProcessor.service.file.FileManageService;
 import org.com.code.certificateProcessor.util.OssImageCompressor;
-import org.slf4j.Logger; // 2. 导入 Logger
-import org.slf4j.LoggerFactory; // 2. 导入 LoggerFactory
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.awt.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets; // 3. 导入 Charsets
 import java.util.List;
@@ -44,7 +45,7 @@ import java.util.Map;
 )
 public class studentAwardSubmissionConsumer implements RocketMQListener<MessageExt> {
     @Autowired
-    private MultiModelService multiModelService;
+    private OCRService ocrService;
     @Autowired
     private AwardSubmissionMapper awardSubmissionMapper;
     @Autowired
@@ -54,8 +55,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
     @Autowired
     private StandardAwardMapper standardAwardMapper;
     @Autowired
-    @Qualifier("ClassificationAgent")
-    private ClassificationAgent classificationAgent;
+    private ClassificationService classificationService;
     @Autowired
     StudentMapper studentMapper;
 
@@ -77,7 +77,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
              * 当 IfSubmissionGotRevoked uploadId 1   代表文件被撤销
              */
             String ifSubmissionGotRevoked = (String) objectRedisTemplate.opsForHash().get(FileManageService.IfSubmissionGotRevoked,submissionId);
-            if(ifSubmissionGotRevoked.equals("1")){
+            if(ifSubmissionGotRevoked != null && ifSubmissionGotRevoked.equals("1")){
                 objectRedisTemplate.opsForHash().delete(FileManageService.IfSubmissionGotRevoked,submissionId);
                 return;
             }
@@ -87,7 +87,10 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
 
             AwardInfo awardInfo;
             try {
-                awardInfo = multiModelService.extractWordFromPicture(compressedImageURL);
+                Image image = Image.builder()
+                        .url(compressedImageURL)
+                        .build();
+                awardInfo = ocrService.getOcrAgent().extractWordFromPicture(image);
             } catch (Exception e) {
                 throw new LangChain4jException("视觉模型分析图片发生错误", e);
             }
@@ -126,7 +129,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
                 List<String> candidateAwardIds = rankedAwardIds.stream().limit(CANDIDATE_AWARD_NUM).toList();
                 List<StandardAward> standardAwards = standardAwardMapper.getAwardsByBatchId(candidateAwardIds);
 
-                AwardClassification awardClassification =classificationAgent.classifyAward(awardInfo,standardAwards);
+                AwardClassification awardClassification =classificationService.getClassificationAgent().classifyAward(awardInfo,standardAwards);
 
                 if(!awardClassification.getMatchFound()){
                     awardSubmissionMapper.updateAwardSubmission(Map.of(
@@ -140,7 +143,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
                         completeUploadInfo.get("studentId").toString()
                 );
 
-                DeduplicationResult deduplicationResult = classificationAgent.checkForDuplicate(awardInfo,awardSubmissions);
+                DeduplicationResult deduplicationResult = classificationService.getClassificationAgent().checkForDuplicate(awardInfo,awardSubmissions);
                 if(deduplicationResult.getDuplicated()){
                     awardSubmissionMapper.updateAwardSubmission(Map.of(
                             "submissionId",completeUploadInfo.get("submissionId"),

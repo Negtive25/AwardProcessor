@@ -9,5 +9,4 @@ public class CertificateProcessorApplication {
     public static void main(String[] args) {
         SpringApplication.run(CertificateProcessorApplication.class, args);
     }
-
 }

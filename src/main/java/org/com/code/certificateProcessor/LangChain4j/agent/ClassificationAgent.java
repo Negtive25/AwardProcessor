@@ -3,6 +3,7 @@ package org.com.code.certificateProcessor.LangChain4j.agent;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
+import org.com.code.certificateProcessor.LangChain4j.modelInfo.AwardClassification;
 import org.com.code.certificateProcessor.LangChain4j.modelInfo.AwardInfo;
 import org.com.code.certificateProcessor.LangChain4j.modelInfo.DeduplicationResult;
 import org.com.code.certificateProcessor.pojo.AwardSubmission;

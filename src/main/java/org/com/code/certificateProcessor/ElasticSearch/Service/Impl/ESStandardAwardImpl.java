@@ -6,6 +6,7 @@ import org.com.code.certificateProcessor.ElasticSearch.Service.ElasticUtil;
 import org.com.code.certificateProcessor.ElasticSearch.Service.ESStandardAwardService;
 import org.com.code.certificateProcessor.LangChain4j.service.EmbeddingService;
 import org.com.code.certificateProcessor.exeption.ElasticSearchException;
+import org.com.code.certificateProcessor.pojo.dto.request.StandardAwardRequest;
 import org.com.code.certificateProcessor.pojo.enums.ContentType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -26,21 +27,11 @@ public class ESStandardAwardImpl implements ESStandardAwardService {
     @Autowired
     private EmbeddingService embeddingService;
     @Override
-    public void bulkCreateStandardAwardIndex(List<Map<String, Object>> standardAwardList) throws IOException {
+    public void bulkCreateStandardAwardIndex(List<StandardAwardRequest> standardAwardList) {
         try{
-            List<String> standardAwardNameList = standardAwardList.stream().map(standardAward -> standardAward.get("name").toString()).toList();
+            List<String> standardAwardNameList = standardAwardList.stream().map(StandardAwardRequest::getName).toList();
             List<float[]> ebeddingList = embeddingService.getEmbeddings(standardAwardNameList);
-
-            List<Map<String,Object>> documents = standardAwardList.stream()
-                    .map(standardAward -> {
-                        Map<String, Object> document = new HashMap<>();
-                        document.put("standardAwardId", standardAward.get("standardAwardId"));
-                        document.put("name", standardAward.get("name"));
-                        document.put("isActive", true);
-                        return document;
-                    })
-                    .toList();
-            elasticUtil.bulkIndex(documents, ContentType.STANDARD_AWARD.getType(), ebeddingList);
+            elasticUtil.bulkIndex(standardAwardList, ContentType.STANDARD_AWARD.getType(), ebeddingList);
         }catch (Exception e){
             throw new ElasticSearchException("创建标准奖状ES索引失败",e);
         }
@@ -55,10 +46,10 @@ public class ESStandardAwardImpl implements ESStandardAwardService {
         }
     }
 
-    @Override
-    public void updateStandardAwardIndex(List<Map<String, Object>> standardAwardList) {
+     @Override
+    public void updateStandardAwardIndex(List<StandardAwardRequest> standardAwardList) {
         try{
-            List<String> standardAwardNameList = standardAwardList.stream().map(standardAward -> standardAward.get("name").toString()).toList();
+            List<String> standardAwardNameList = standardAwardList.stream().map(standardAward -> standardAward.getName().toString()).toList();
             List<float[]> ebeddingList = embeddingService.getEmbeddings(standardAwardNameList);
             elasticUtil.bulkUpdate(standardAwardList,ContentType.STANDARD_AWARD.getType(),ebeddingList);
         }catch (Exception e){

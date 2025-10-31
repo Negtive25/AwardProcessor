@@ -9,7 +9,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target({ElementType.FIELD,ElementType.PARAMETER})
+//只要注解写在泛型尖括号 <...> 里面，就需要 ElementType.TYPE_USE
+@Target({ElementType.FIELD,ElementType.PARAMETER,ElementType.TYPE_USE})
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = EnumValidator.class)
 public @interface ValidEnum {

@@ -1,11 +1,10 @@
 package org.com.code.certificateProcessor.service.student.impl;
 
-import org.com.code.certificateProcessor.exeption.AdminException;
 import org.com.code.certificateProcessor.exeption.StudentException;
 import org.com.code.certificateProcessor.mapper.AwardSubmissionMapper;
 import org.com.code.certificateProcessor.mapper.StudentMapper;
-import org.com.code.certificateProcessor.pojo.AwardSubmission;
 import org.com.code.certificateProcessor.pojo.Student;
+import org.com.code.certificateProcessor.pojo.dto.request.StudentRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
 import org.com.code.certificateProcessor.pojo.enums.Auth;
 import org.com.code.certificateProcessor.security.CustomAuthenticationToken;
@@ -19,7 +18,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StudentImpl extends BaseCursorPageService<Student> implements StudentService{
@@ -74,27 +75,32 @@ public class StudentImpl extends BaseCursorPageService<Student> implements Stude
     }
 
     @Override
-    public CursorPageResponse<Student> cursorQueryStudent(String lastStrId, int pageSize, String condition) {
+    public CursorPageResponse<Student> cursorQueryStudent(String lastStrId, int pageSize) {
         try {
+            CursorPageResponse<Student> studentList;
             if(pageSize < 0){
-                CursorPageResponse<Student> studentList =  fetchPage(lastStrId, - pageSize, studentMapper::getPreviousStudent, Student::getStudentId,condition);
-                List<String> studentIds = studentList.getList().stream().map(Student::getStudentId).toList();
-                List<Double> sumOfScoreList = awardSubmissionMapper.sumApprovedScoreByStudentIdList(studentIds);
-                for (int i = 0; i < studentList.getList().size(); i++) {
-                    studentList.getList().get(i).setSumOfScore(sumOfScoreList.get(i));
-                }
-                return studentList;
+                studentList =  fetchPage(lastStrId, - pageSize, studentMapper::getPreviousStudent, Student::getStudentId);
             }else{
-                CursorPageResponse<Student> studentList =  fetchPage(lastStrId, pageSize, studentMapper::getLatterStudent, Student::getStudentId,condition);
-                List<String> studentIds = studentList.getList().stream().map(Student::getStudentId).toList();
-                List<Double> sumOfScoreList = awardSubmissionMapper.sumApprovedScoreByStudentIdList(studentIds);
-                for (int i = 0; i < studentList.getList().size(); i++) {
-                    studentList.getList().get(i).setSumOfScore(sumOfScoreList.get(i));
-                }
-                return studentList;
+                studentList =  fetchPage(lastStrId, pageSize, studentMapper::getLatterStudent, Student::getStudentId);
             }
+
+            List<String> studentIds = studentList.getList().stream().map(Student::getStudentId).toList();
+            List<Double> sumOfScoreList = awardSubmissionMapper.sumApprovedScoreByStudentIdList(studentIds);
+            for (int i = 0; i < studentList.getList().size(); i++) {
+                studentList.getList().get(i).setSumOfScore(sumOfScoreList.get(i));
+            }
+            return studentList;
         }catch (Exception e) {
             throw new StudentException("数据库异常，获取学生信息失败",e);
+        }
+    }
+
+    @Override
+    public void updateStudentInfo(StudentRequest studentRequest){
+        try {
+            studentMapper.updateStudentInfo(studentRequest);
+        }catch (Exception e) {
+            throw new StudentException("数据库异常，更新学生信息失败",e);
         }
     }
 }

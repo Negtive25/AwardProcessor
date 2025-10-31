@@ -8,17 +8,15 @@ import java.util.Map;
 
 @Mapper
 public interface AwardSubmissionMapper {
-    String getSubmissionImageURL(String submissionId, String studentId);
+    String getSubmissionImageObjectKey(String submissionId, String studentId);
     List<AwardSubmission> getApprovedSubmissionByStudentId(String studentId);
 
     int addAwardSubmission(Map<String, Object> params);
     int deleteAwardSubmission(String submissionId,String studentId);
 
-    List<AwardSubmission> getAllSubmission(String studentId);
-
     int updateAwardSubmission(Map<String, Object> params);
-    List<AwardSubmission> getLatterSubmission(String lastId, Integer pageSize, String status);
-    List<AwardSubmission> getPreviousSubmission(String lastId, Integer pageSize, String status);
+    List<AwardSubmission> getLatterSubmission(String lastId, Integer pageSize, String studentId,List<String> status);
+    List<AwardSubmission> getPreviousSubmission(String lastId, Integer pageSize, String studentId,List<String> status);
 
     List<Double> sumApprovedScoreByStudentIdList(List<String> studentId);
 }

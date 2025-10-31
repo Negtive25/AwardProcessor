@@ -7,7 +7,7 @@
     <resultMap id="AwardSubmissionResultMap" type="AwardSubmission">
         <id property="id" column="id" /> <result property="submissionId" column="submissionId" />
         <result property="studentId" column="studentId" />
-        <result property="imageUrl" column="imageUrl" />
+        <result property="imageObjectKey" column="imageObjectKey" />
         <result property="status" column="status" />
         <result property="matchedAwardId" column="matchedAwardId" />
         <result property="finalScore" column="finalScore" />
@@ -24,8 +24,8 @@
                 typeHandler="org.com.code.certificateProcessor.handler.JsonListTypeHandler" />
     </resultMap>
 
-    <select id="getSubmissionURL" resultType="String">
-        select imageUrl from award_submission
+    <select id="getSubmissionImageObjectKey" resultType="String">
+        select imageObjectKey from award_submission
         where submissionId = #{submissionId} and studentId = #{studentId}
     </select>
 
@@ -36,21 +36,14 @@
     </select>
 
     <insert id="addAwardSubmission" parameterType="map">
-        insert into award_submission(submissionId,studentId, imageUrl)
-        values(#{submissionId},#{studentId}, #{imageUrl})
+        insert into award_submission(submissionId,studentId,imageObjectKey)
+        values(#{submissionId},#{studentId}, #{imageObjectKey})
     </insert>
 
     <delete id="deleteAwardSubmission">
         delete from award_submission
         where submissionId = #{submissionId} and studentId = #{studentId} and status = 'AI_PROCESSING'
     </delete>
-
-    <select id="getAllSubmission" parameterType="map" resultType="AwardSubmissionResultMap">
-        select submissionId, studentId,
-               imageUrl, status, ocrFullText,
-               matchedAwardId, finalScore, rejectionReason, aiSuggestion, duplicateCheckResult, reviewedBy, submittedAt, completedAt from award_submission
-        where  studentId = #{studentId}
-    </select>
 
     <update id="updateAwardSubmission" parameterType="map">
         UPDATE award_submission
@@ -92,23 +85,41 @@
     <!-- ULID 生成的 submissionId 虽然是字符串,但是基于精确时间戳生成的唯一ID,可以排序,
     基于ULID 越早生成的字符串ID越小 -->
     <select id="getLatterSubmission" resultType="AwardSubmission">
-        select submissionId,studentId,imageUrl,status,
+        select submissionId,studentId,imageObjectKey,status,
                ocrFullText,matchedAwardId,finalScore,rejectionReason,
                aiSuggestion,duplicateCheckResult,reviewedBy,
                submittedAt,completedAt
         from award_submission
-        where submissionId &gt; #{lastId} and status = #{status}
+        where submissionId &gt; #{lastId}
+        <if test="status != null and status.length > 0">
+            and status in
+            <foreach collection="status" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="studentId != null and studentId != ''">
+            and studentId = #{studentId}
+        </if>
         order by submissionId asc
         limit #{pageSize}
     </select>
 
     <select id="getPreviousSubmission" resultType="AwardSubmission">
-        select submissionId, studentId, imageUrl, status,
+        select submissionId, studentId, imageObjectKey, status,
         ocrFullText, matchedAwardId, finalScore, rejectionReason,
         aiSuggestion, duplicateCheckResult, reviewedBy,
         submittedAt, completedAt
         from award_submission
-        where submissionId &lt; #{lastId} and status = #{status}
+        where submissionId &lt; #{lastId}
+        <if test="status != null and status.length > 0">
+            and status in
+            <foreach collection="status" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="studentId != null and studentId != ''">
+            and studentId = #{studentId}
+        </if>
         order by submissionId desc
         limit #{pageSize}
     </select>

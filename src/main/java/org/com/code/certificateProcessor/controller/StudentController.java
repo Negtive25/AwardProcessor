@@ -5,17 +5,24 @@ import org.apache.logging.log4j.core.config.plugins.validation.constraints.NotBl
 import org.apache.tika.Tika;
 import org.com.code.certificateProcessor.pojo.AwardSubmission;
 import org.com.code.certificateProcessor.pojo.Student;
-import org.com.code.certificateProcessor.pojo.dto.request.CreateStudentRequest;
-import org.com.code.certificateProcessor.pojo.dto.request.SignInStudentRequest;
+import org.com.code.certificateProcessor.pojo.dto.groupInterface.CreateGroup;
+import org.com.code.certificateProcessor.pojo.dto.groupInterface.SignInGroup;
+import org.com.code.certificateProcessor.pojo.dto.groupInterface.UpdateGroup;
+import org.com.code.certificateProcessor.pojo.dto.request.CursorPageRequest;
+import org.com.code.certificateProcessor.pojo.dto.request.StudentRequest;
+import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
 import org.com.code.certificateProcessor.pojo.enums.Auth;
+import org.com.code.certificateProcessor.pojo.enums.AwardSubmissionStatus;
 import org.com.code.certificateProcessor.responseHandler.ResponseHandler;
 import org.com.code.certificateProcessor.rocketMQ.producer.SubmissionProducer;
 import org.com.code.certificateProcessor.service.awardSubmission.AwardSubmissionService;
 import org.com.code.certificateProcessor.service.student.StudentService;
 import org.com.code.certificateProcessor.service.file.FileManageService;
+import org.com.code.certificateProcessor.validation.ValidEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.com.code.certificateProcessor.rocketMQ.MQConstants;
@@ -26,6 +33,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/student")
+@Validated
 public class StudentController {
     @Autowired
     private StudentService studentService;
@@ -40,24 +48,23 @@ public class StudentController {
 
     @PostMapping("/signUp")
     public ResponseHandler signUp(
-            // 这个 @Valid 是必须的，它负责触发上面 DTO 中所有规则的检查
-            @Valid @RequestBody CreateStudentRequest createStudentRequest) {
+            @Validated(CreateGroup.class) @RequestBody StudentRequest studentRequest) {
 
         Student student = new Student();
-        student.setStudentId(createStudentRequest.getStudentId());
-        student.setPassword(createStudentRequest.getPassword());
-        student.setName(createStudentRequest.getName());
-        student.setCollege(createStudentRequest.getCollege());
-        student.setMajor(createStudentRequest.getMajor());
+        student.setStudentId(studentRequest.getStudentId());
+        student.setPassword(studentRequest.getPassword());
+        student.setName(studentRequest.getName());
+        student.setCollege(studentRequest.getCollege());
+        student.setMajor(studentRequest.getMajor());
         student.setAuth(Auth.STUDENT.getType());
 
         studentService.addStudent(student);
         return new ResponseHandler(ResponseHandler.SUCCESS, "注册成功");
     }
     @PostMapping("/signIn")
-    public ResponseHandler signIn(@Valid @RequestBody SignInStudentRequest signInStudentRequest) {
-        String token = studentService.studentSignIn(signInStudentRequest.getStudentId(),
-                signInStudentRequest.getPassword());
+    public ResponseHandler signIn(@Validated(SignInGroup.class) @RequestBody StudentRequest studentRequest) {
+        String token = studentService.studentSignIn(studentRequest.getStudentId(),
+                studentRequest.getPassword());
         return new ResponseHandler(ResponseHandler.SUCCESS, "登录成功,获取token", token);
     }
 
@@ -99,7 +106,7 @@ public class StudentController {
     @PostMapping("/uploadPart")
     public ResponseHandler awardSubmission(@RequestParam("fileChunk") MultipartFile fileChunk,
                                            @RequestParam("chunkSerialNumber") int chunkSerialNumber,
-                                           @RequestParam("uploadId") String uploadId) throws Exception {
+                                           @RequestParam("uploadId")@NotBlank(message = "上传ID不能为空") String uploadId) throws Exception {
         Map<String, Object> uploadInfo = (Map<String, Object>) objectRedisTemplate.opsForValue().get(fileManageService.UPLOAD_ID_KEY_PREFIX + uploadId);
         if (uploadInfo == null)
             return new ResponseHandler(ResponseHandler.NOT_FOUND, "上传信息不存在");
@@ -163,9 +170,18 @@ public class StudentController {
         return new ResponseHandler(ResponseHandler.SUCCESS, "撤销提交成功");
     }
 
-    @GetMapping("/getAllSubmissionProgress")
-    public ResponseHandler getAllSubmissionProgress() {
-        List<AwardSubmission> allSubmissionProgress = awardSubmissionService.getAllSubmissionProgress(SecurityContextHolder.getContext().getAuthentication().getName());
-        return new ResponseHandler(ResponseHandler.SUCCESS, "获取所有提交进度成功", allSubmissionProgress);
+    @GetMapping("/getSubmissionProgress")
+    public ResponseHandler getSubmissionProgress(@Valid @RequestBody CursorPageRequest cursorPageRequest,
+                                                 @RequestParam List<@ValidEnum(enumClass = AwardSubmissionStatus.class) String> status) {
+        String studentId = SecurityContextHolder.getContext().getAuthentication().getName();
+        CursorPageResponse<AwardSubmission> submissionProgress = awardSubmissionService.cursorQuerySubmissionByStatus(cursorPageRequest.getLastId(), cursorPageRequest.getPageSize(),studentId, status);
+
+        return new ResponseHandler(ResponseHandler.SUCCESS, "获取提交进度成功", submissionProgress);
+    }
+
+    @PutMapping("/updateInfo")
+    public ResponseHandler updateInfo(@Validated(UpdateGroup.class)@RequestBody StudentRequest studentRequest) {
+        studentService.updateStudentInfo(studentRequest);
+        return new ResponseHandler(ResponseHandler.SUCCESS, "更新学生信息成功");
     }
 }

@@ -5,12 +5,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+//这个类专门用来映射Elasticsearch中包含向量的文档。
 @Getter
 @Setter
 @NoArgsConstructor
-//这个类专门用来映射Elasticsearch中包含向量的文档。
+//它告诉JSON解析器，如果JSON 中有类里不存在的字段，请忽略不要报错
 @JsonIgnoreProperties(ignoreUnknown = true)
-//它告诉JSON解析器，如果ES文档中有多余的字段，请直接忽略，不要报错。
 public class VectorDoc {
     private float[] average_vector;
 }

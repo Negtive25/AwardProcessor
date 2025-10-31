@@ -41,7 +41,7 @@ CREATE TABLE `award_submission` (
                                     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
                                     `submissionId` VARCHAR(256) NOT NULL,
                                     `studentId`VARCHAR(20) NOT NULL,
-                                    `imageUrl` VARCHAR(512) NOT NULL COMMENT '奖状图片在对象存储中的URL',
+                                    `imageObjectKey` VARCHAR(512) NOT NULL COMMENT '奖状图片在对象存储中的ObjectKey',
                                     `status` ENUM(
                                         'AI_PROCESSING',       -- 1. 处理中 (任务已入队，等待AI处理)
                                         'AI_APPROVED',         -- 4. 已通过 (AI审核通过,等待管理员复审)

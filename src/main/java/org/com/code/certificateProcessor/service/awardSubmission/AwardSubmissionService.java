@@ -8,8 +8,8 @@ import java.util.List;
 
 public interface AwardSubmissionService {
     void revokeSubmission(String submissionId,String studentId);
-    List<AwardSubmission> getAllSubmissionProgress(String studentId);
-    CursorPageResponse<AwardSubmission> cursorQuerySubmissionByStatus(String lastStrId, int pageSize, String status);
+
+    CursorPageResponse<AwardSubmission> cursorQuerySubmissionByStatus(String lastStrId, int pageSize,String studentId,List<String> status);
     void ReviewSubmissionRequest(ReviewSubmissionRequest request);
 
     List<Double> sumApprovedScoreByStudentId(List<String> studentIds);

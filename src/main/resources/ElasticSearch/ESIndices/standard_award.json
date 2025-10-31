@@ -1,4 +1,8 @@
 {
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
   "mappings": {
     "properties": {
       "standardAwardId": {
@@ -18,17 +22,11 @@
       "isActive": {
         "type": "boolean"
       },
-      "name_vector": {
+      "nameVector": {
         "type": "dense_vector",
         "dims": 1024,
         "index": true,
         "similarity": "cosine"
-      }
-    },
-    "settings": {
-      "index": {
-        "number_of_shards": "1",
-        "number_of_replicas": "1"
       }
     }
   }

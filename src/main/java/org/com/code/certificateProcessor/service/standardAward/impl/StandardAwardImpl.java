@@ -4,6 +4,7 @@ import org.com.code.certificateProcessor.ElasticSearch.Service.ESStandardAwardSe
 import org.com.code.certificateProcessor.exeption.StandardAwardException;
 import org.com.code.certificateProcessor.mapper.StandardAwardMapper;
 import org.com.code.certificateProcessor.pojo.StandardAward;
+import org.com.code.certificateProcessor.pojo.dto.request.StandardAwardRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
 import org.com.code.certificateProcessor.service.BaseCursorPageService;
 import org.com.code.certificateProcessor.service.standardAward.StandardAwardService;
@@ -24,13 +25,13 @@ public class StandardAwardImpl extends BaseCursorPageService<StandardAward> impl
     @Override
     public CursorPageResponse<StandardAward> cursorQueryStandardAward(String lastId, int pageSize) {
         if(pageSize < 0)
-            return fetchPage(lastId, - pageSize, standardAwardMapper::getPreviousStandardAward, StandardAward::getStandardAwardId,null);
-        return fetchPage(lastId, pageSize, standardAwardMapper::getLatterStandardAward, StandardAward::getStandardAwardId,null);
+            return fetchPage(lastId, - pageSize, standardAwardMapper::getPreviousStandardAward, StandardAward::getStandardAwardId);
+        return fetchPage(lastId, pageSize, standardAwardMapper::getLatterStandardAward, StandardAward::getStandardAwardId);
     }
 
     @Override
     @Transactional
-    public void addBatchStandardAward(List<Map<String, Object>> standardAwardList) {
+    public void addBatchStandardAward(List<StandardAwardRequest> standardAwardList) {
         try{
             standardAwardMapper.addBatchStandardAward(standardAwardList);
             esStandardAwardService.bulkCreateStandardAwardIndex(standardAwardList);
@@ -41,7 +42,7 @@ public class StandardAwardImpl extends BaseCursorPageService<StandardAward> impl
 
     @Override
     @Transactional
-    public void updateBatchStandardAward(List<Map<String, Object>> standardAwardList) {
+    public void updateBatchStandardAward(List<StandardAwardRequest> standardAwardList) {
         try{
             standardAwardMapper.updateBatchStandardAward(standardAwardList);
             esStandardAwardService.updateStandardAwardIndex(standardAwardList);

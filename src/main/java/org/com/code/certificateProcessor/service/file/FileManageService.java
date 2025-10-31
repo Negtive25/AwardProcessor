@@ -66,25 +66,16 @@ public class FileManageService {
     public Map<String, Object> initMultipartUpload(String fileName,String detectedMimeType,long fileSize){
         try {
             //生成文件在OSS存储的路径
-            String filePath = ossService.getFilePath(fileName,detectedMimeType);
+            String imageObjectKey = ossService.getObjectKey(fileName,detectedMimeType);
             //给文件分成许多小段
             int totalPartCount = (int) Math.ceil((double) fileSize / PART_SIZE);
 
-            OSSClient ossClient = ossService.getOSSClient();
-            InitiateMultipartUploadRequest request = new InitiateMultipartUploadRequest(
-                    ossService.getBucketName(), filePath);
-
-            ObjectMetadata objectMetadata = new ObjectMetadata();
-            objectMetadata.setContentType(detectedMimeType);
-            request.setObjectMetadata(objectMetadata);
-
-            InitiateMultipartUploadResult result = ossClient.initiateMultipartUpload(request);
-            String uploadId = result.getUploadId();
+            String uploadId = ossService.getUploadId(detectedMimeType, imageObjectKey);
 
             Map<String, Object> uploadInfo = new HashMap<>();
             uploadInfo.put("studentId", SecurityContextHolder.getContext().getAuthentication().getName());
             uploadInfo.put("fileName", fileName);
-            uploadInfo.put("filePath", filePath);
+            uploadInfo.put("imageObjectKey", imageObjectKey);
             uploadInfo.put("fileSize", fileSize);
             uploadInfo.put("totalPartCount", totalPartCount);
             uploadInfo.put("completedPartNumber", 0);
@@ -103,21 +94,13 @@ public class FileManageService {
         }
     }
 
+
+
     public void uploadPart(String uploadId, Map<String, Object> uploadInfo, int chunkSerialNumber, InputStream inputStream,long fileChunkSize) throws Exception {
         try {
-            String filePath = (String) uploadInfo.get("filePath");
+            String imageObjectKey = (String) uploadInfo.get("imageObjectKey");
 
-            UploadPartRequest uploadPartRequest = new UploadPartRequest();
-            uploadPartRequest.setBucketName(ossService.getBucketName());
-            uploadPartRequest.setKey(filePath);
-            uploadPartRequest.setUploadId(uploadId);
-            uploadPartRequest.setPartNumber(chunkSerialNumber);
-            uploadPartRequest.setInputStream(inputStream);
-            uploadPartRequest.setPartSize(fileChunkSize);
-
-            OSSClient ossClient = ossService.getOSSClient();
-            // 执行上传操作
-            UploadPartResult uploadPartResult = ossClient.uploadPart(uploadPartRequest);
+            UploadPartResult uploadPartResult = ossService.getUploadPartResult(uploadId, chunkSerialNumber, inputStream, fileChunkSize, imageObjectKey);
 
             int completedPartNumber = (int)uploadInfo.get("completedPartNumber");
             long currentUploadedFileSize = (long) uploadInfo.get("currentUploadedFileSize");
@@ -134,6 +117,8 @@ public class FileManageService {
         }
     }
 
+
+
     public Map<String, Object> completeMultipartUpload(String uploadId,Map<String, Object> uploadInfo) {
         try {
             List<PartETagDTO> completedPartETags = (List<PartETagDTO>) uploadInfo.get("completedPartETags");
@@ -143,17 +128,13 @@ public class FileManageService {
             completedPartETags.sort(Comparator.comparingInt(PartETagDTO::getPartNumber));
             List<PartETag> partETags = completedPartETags.stream().map(PartETagDTO::toPartETag).collect(Collectors.toList());
 
-            String filePath = (String) uploadInfo.get("filePath");
-            CompleteMultipartUploadRequest completeMultipartUploadRequest
-                    = new CompleteMultipartUploadRequest(ossService.getBucketName(), filePath, uploadId, partETags);
-
-            OSSClient ossClient = ossService.getOSSClient();
-            ossClient.completeMultipartUpload(completeMultipartUploadRequest);
+            String imageObjectKey = (String) uploadInfo.get("imageObjectKey");
+            ossService.completeMultipartUploadRequest(uploadId, imageObjectKey, partETags);
 
             Map<String, Object> map = new HashMap<>();
-            String imageUrl = ossService.getBucketDomain() + "/" + filePath;
+            String imageTemporaryUrl = ossService.generateTemporaryUrl(imageObjectKey,180);
 
-            map.put("imageUrl", imageUrl);
+            map.put("imageTemporaryUrl", imageTemporaryUrl);
             map.put("submissionId", uploadInfo.get("submissionId"));
             map.put("status", AwardSubmissionStatus.AI_PROCESSING);
             map.put("studentId",SecurityContextHolder.getContext().getAuthentication().getName());
@@ -163,7 +144,7 @@ public class FileManageService {
             awardSubmissionMapper.addAwardSubmission(Map.of(
                     "submissionId",submissionId,
                     "studentId",uploadInfo.get("studentId"),
-                    "imageUrl", imageUrl));
+                    "imageObjectKey", imageObjectKey));
 
             objectRedisTemplate.execute(new SessionCallback<Object>() {
                 @Override

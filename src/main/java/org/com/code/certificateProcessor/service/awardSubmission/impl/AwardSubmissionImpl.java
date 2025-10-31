@@ -41,8 +41,8 @@ public class AwardSubmissionImpl extends BaseCursorPageService<AwardSubmission> 
             if(result == 0)
                 throw new StudentException("撤销失败");
 
-            String imageURL = awardSubmissionMapper.getSubmissionImageURL(submissionId,studentId);
-            ossService.deleteFile(imageURL);
+            String imageObjectKey = awardSubmissionMapper.getSubmissionImageObjectKey(submissionId,studentId);
+            ossService.deleteFile(imageObjectKey);
 
             objectRedisTemplate.opsForHash().put(FileManageService.IfSubmissionGotRevoked,submissionId,"1");
         }catch (Exception e) {
@@ -51,19 +51,14 @@ public class AwardSubmissionImpl extends BaseCursorPageService<AwardSubmission> 
     }
 
     @Override
-    public List<AwardSubmission> getAllSubmissionProgress(String studentId) {
-        try {
-            return awardSubmissionMapper.getAllSubmission(studentId);
-        }catch (Exception e) {
-            throw new StudentException("数据库异常，获取学生提交进度失败",e);
-        }
-    }
-
-    @Override
-    public CursorPageResponse<AwardSubmission> cursorQuerySubmissionByStatus(String lastId, int pageSize, String status) {
-        if(pageSize < 0)
-            return fetchPage(lastId, - pageSize, awardSubmissionMapper::getPreviousSubmission, AwardSubmission::getSubmissionId,status);
-        return fetchPage(lastId, pageSize, awardSubmissionMapper::getLatterSubmission, AwardSubmission::getSubmissionId,status);
+    public CursorPageResponse<AwardSubmission> cursorQuerySubmissionByStatus(String lastId, int pageSize,String studentId, List<String> status) {
+       try {
+           if(pageSize < 0)
+               return fetchAwardSubmissionPage(lastId, - pageSize, awardSubmissionMapper::getPreviousSubmission, AwardSubmission::getSubmissionId,studentId,status);
+           return fetchAwardSubmissionPage(lastId, pageSize, awardSubmissionMapper::getLatterSubmission, AwardSubmission::getSubmissionId,studentId,status);
+       }catch (Exception e) {
+           throw new StudentException("数据库异常，游标查询获取提交进度失败",e);
+       }
     }
 
     @Override
@@ -89,7 +84,7 @@ public class AwardSubmissionImpl extends BaseCursorPageService<AwardSubmission> 
         try {
             return awardSubmissionMapper.sumApprovedScoreByStudentIdList(studentIds);
         }catch (Exception e) {
-            throw new StudentException("数据库异常，获取学生提交进度失败",e);
+            throw new StudentException("数据库异常，获取提交进度失败",e);
         }
     }
 }

@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.com.code.certificateProcessor.mapper.StudentMapper">
     <select id="getStudentAuth" resultType="Student">
-        select studentId,password,auth from student where studentId=#{studentId}
+        select studentId,auth from student where studentId=#{studentId}
     </select>
 
     <insert id="addStudent" parameterType="Student">
@@ -17,11 +17,12 @@
     </select>
 
     <select id="getStudentById" resultType="Student">
-        select studentId,name,college,major from student where studentId=#{studentId}
+        select studentId,name,college,major,createdAt,updatedAt
+        from student where studentId=#{studentId}
     </select>
 
     <select id="getLatterStudent" resultType="Student">
-        select studentId,name,college,major 
+        select studentId,name,college,major,createdAt,updatedAt
         from student 
         where studentId &gt; #{studentId}
         order by studentId asc
@@ -29,10 +30,29 @@
     </select>
 
     <select id="getPreviousStudent" resultType="Student">
-        select studentId,name,college,major 
+        select studentId,name,college,major,createdAt,updatedAt
         from student 
         where studentId &lt; #{studentId}
         order by studentId desc
         limit #{pageSize}
     </select>
+    
+    <update id="updateStudentInfo" parameterType="Student">
+        update student
+        <set>
+            <if test="name != null">
+                name = #{name},
+            </if>
+            <if test="college != null">
+                college = #{college},
+            </if>
+            <if test="major != null">
+                major = #{major},
+            </if>
+            <if test="password != null">
+                password = #{password},
+            </if>
+        </set>
+        where studentId = #{studentId}
+    </update>
 </mapper>
