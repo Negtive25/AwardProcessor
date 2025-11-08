@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.code.certificateProcessor.mapper.StudentMapper">
+    <select id="getStudentAuth" resultType="Student">
+        select studentId,password,auth from student where studentId=#{studentId}
+    </select>
+
+    <insert id="addStudent" parameterType="Student">
+        insert into student(studentId,password,name,college,major,auth)
+        values(#{studentId},#{password},#{name},#{college},#{major},#{auth})
+    </insert>
+
+    <select id="getStudentNameById" resultType="String">
+        select name from student where studentId = #{studentId}
+    </select>
+
+    <select id="getStudentById" resultType="Student">
+        select studentId,name,college,major,createdAt,updatedAt
+        from student where studentId=#{studentId}
+    </select>
+
+    <select id="getLatterStudent" resultType="Student">
+        select studentId,name,college,major,createdAt,updatedAt
+        from student 
+        where studentId &gt; #{lastId}
+        order by studentId asc
+        limit #{pageSize}
+    </select>
+
+    <select id="getPreviousStudent" resultType="Student">
+        select studentId,name,college,major,createdAt,updatedAt
+        from student 
+        where studentId &lt; #{lastId}
+        order by studentId desc
+        limit #{pageSize}
+    </select>
+    
+    <update id="updateStudentInfo" parameterType="Student">
+        update student
+        <set>
+            <!-- 学生姓名和奖状姓名挂钩,不能更新 -->
+            <if test="college != null and college != ''">
+                college = #{college},
+            </if>
+            <if test="major != null and major != ''">
+                major = #{major},
+            </if>
+            <if test="password != null and password != ''">
+                password = #{password},
+            </if>
+        </set>
+        where studentId = #{studentId}
+    </update>
+</mapper>

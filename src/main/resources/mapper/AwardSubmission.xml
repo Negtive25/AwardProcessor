@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.code.certificateProcessor.mapper.AwardSubmissionMapper">
+
+    <resultMap id="AwardSubmissionResultMap" type="AwardSubmission">
+
+        <result property="ocrFullText" column="ocrFullText"
+                typeHandler="org.com.code.certificateProcessor.handler.JsonTypeHandler" />
+
+        <result property="suggestion" column="suggestion"
+                typeHandler="org.com.code.certificateProcessor.handler.JsonListTypeHandler" />
+    </resultMap>
+
+    <select id="getSubmissionStatus" resultType="AwardSubmissionStatus">
+        select status from award_submission
+        where submissionId = #{submissionId}
+    </select>
+
+    <select id="getSubmissionImageObjectKey" resultType="String">
+        select imageObjectKey from award_submission
+        where submissionId = #{submissionId} and studentId = #{studentId}
+    </select>
+
+    <select id="getSubmissionsForDuplicateCheck" resultMap="AwardSubmissionResultMap">
+        select submissionId, studentId, ocrFullText
+        from award_submission
+        where studentId = #{studentId}
+        and status in
+        <foreach collection="statusList" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+    </select>
+
+
+    <insert id="addAwardSubmission" parameterType="map">
+        insert into award_submission(submissionId,studentId,imageObjectKey)
+        values(#{submissionId},#{studentId}, #{imageObjectKey})
+    </insert>
+
+    <delete id="deleteAwardSubmission">
+        delete from award_submission
+        where submissionId = #{submissionId} and studentId = #{studentId} and status = 'AI_PROCESSING'
+    </delete>
+
+    <update id="updateAwardSubmission" parameterType="AwardSubmission">
+        UPDATE award_submission
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="ocrFullText != null and ocrFullText != ''">
+                ocrFullText = #{ocrFullText,typeHandler=org.com.code.certificateProcessor.handler.JsonTypeHandler},
+            </if>
+            <if test="matchedAwardId != null and matchedAwardId != ''">
+                matchedAwardId = #{matchedAwardId},
+            </if>
+            <if test="finalScore != null">
+                finalScore = #{finalScore},
+            </if>
+            <if test="reason != null and reason != ''">
+                reason = #{reason},
+            </if>
+            <if test="suggestion != null and suggestion != ''">
+                suggestion = #{suggestion,typeHandler=org.com.code.certificateProcessor.handler.JsonListTypeHandler},
+            </if>
+            <if test="duplicateCheckResult != null">
+                duplicateCheckResult = #{duplicateCheckResult},
+            </if>
+            <if test="reviewedBy != null and reviewedBy != ''">
+                reviewedBy = #{reviewedBy},
+            </if>
+            <if test="submittedAt != null">
+                submittedAt = #{submittedAt},
+            </if>
+            <if test="completedAt != null">
+                completedAt = #{completedAt}
+            </if>
+        </set>
+        where submissionId = #{submissionId}
+    </update>
+
+    <!-- ULID 生成的 submissionId 虽然是字符串,但是基于精确时间戳生成的唯一ID,可以排序,
+    基于 ULID 越早生成的字符串ID越小 -->
+    <select id="getLatterSubmission" resultMap="AwardSubmissionResultMap">
+        select
+        <trim suffixOverrides=",">
+            submissionId,
+            studentId,
+            imageObjectKey,
+            status,
+            ocrFullText,
+            matchedAwardId,
+            finalScore,
+            reason,
+            <if test="isAdmin != null and isAdmin">
+                suggestion,
+            </if>
+            duplicateCheckResult,
+            reviewedBy,
+            submittedAt,
+            completedAt,
+        </trim>
+        from award_submission
+        where submissionId &gt; #{lastId}
+        <if test="statusList != null and statusList.size > 0">
+            and status in
+            <foreach collection="statusList" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="studentId != null and studentId != ''">
+            and studentId = #{studentId}
+        </if>
+        order by submissionId asc
+        limit #{pageSize}
+    </select>
+
+    <select id="getPreviousSubmission" resultMap="AwardSubmissionResultMap">
+        select
+        <trim suffixOverrides=",">
+            submissionId,
+            studentId,
+            imageObjectKey,
+            status,
+            ocrFullText,
+            matchedAwardId,
+            finalScore,
+            reason,
+            <if test="isAdmin != null and isAdmin">
+                suggestion,
+            </if>
+            duplicateCheckResult,
+            reviewedBy,
+            submittedAt,
+            completedAt,
+        </trim>
+        from award_submission
+        where submissionId &lt; #{lastId}
+        <if test="statusList != null and statusList.size > 0">
+            and status in
+            <foreach collection="statusList" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="studentId != null and studentId != ''">
+            and studentId = #{studentId}
+        </if>
+        order by submissionId desc
+        limit #{pageSize}
+    </select>
+
+
+
+    <select id="sumApprovedScoreByStudentIdList"
+            parameterType="List"
+            resultType="StudentScoreDto">
+        select
+        studentId,
+        coalesce(sum(finalScore), 0) as sumOfScore
+        from award_submission
+        where studentId in
+        <foreach collection="studentIdList" item="studentId" open="(" separator="," close=")">
+            #{studentId}
+        </foreach>
+        and status = 'MANUAL_APPROVED'
+        group by studentId
+    </select>
+
+</mapper>

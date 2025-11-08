@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.code.certificateProcessor.mapper.StandardAwardMapper">
+
+    <select id="getStandardAwardById" resultType="StandardAward">
+        select standardAwardId, name, category, level, score,
+               isActive, createdBy, updatedBy, createdAt, updatedAt
+        from standard_award
+        where standardAwardId = #{standardAwardId}
+    </select>
+
+    <select id="getLatterStandardAward" resultType="StandardAward">
+        select standardAwardId, name, category, level, score,
+               isActive, createdBy, updatedBy, createdAt, updatedAt
+        from standard_award
+        where standardAwardId &gt; #{lastId}
+        order by standardAwardId asc
+        limit #{pageSize}
+    </select>
+
+    <select id="getPreviousStandardAward" resultType="StandardAward">
+        select standardAwardId, name, category, level, score,
+               isActive, createdBy, updatedBy, createdAt, updatedAt
+        from standard_award
+        where standardAwardId &lt; #{lastId}
+        order by standardAwardId desc
+        limit #{pageSize}
+    </select>
+
+    <insert id="addStandardAward" parameterType="StandardAward">
+        insert into standard_award(standardAwardId,name,category,level,score,createdBy,updatedBy)
+        values (#{standardAwardId},#{name},#{category},#{level},#{score},#{createdBy},#{updatedBy})
+    </insert>
+
+    <update id="updateStandardAward" parameterType="StandardAward">
+        update standard_award
+        <set>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="category != null and category != ''">
+                category = #{category},
+            </if>
+            <if test="level != null and level != ''">
+                level = #{level},
+            </if>
+            <if test="score != null">
+                score = #{score},
+            </if>
+            <if test="isActive != null">
+                isActive = #{isActive},
+            </if>
+            <if test="updatedBy != null and updatedBy != ''">
+                updatedBy = #{updatedBy},
+            </if>
+        </set>
+        where standardAwardId = #{standardAwardId}
+    </update>
+
+    <delete id="deleteStandardAward" parameterType="String">
+        delete from standard_award
+        where standardAwardId = #{standardAwardId}
+    </delete>
+    
+    <select id="getAwardsByBatchId" parameterType="List" resultType="StandardAward">
+        select standardAwardId,name,category,level,score,createdBy,updatedBy,createdAt,updatedAt
+        from standard_award
+        <where>
+            <if test="list != null and list.size() > 0">
+                standardAwardId in
+                <foreach collection="list" item="item" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+                and isActive = true
+            </if>
+
+        <!-- 这里很重要，如果没有这个 1 = 0，如果传进来一个空列表或者 null ，则数据库会尝试把
+          整个表的数据都返回，造成性能灾难 -->
+            <if test="list == null or list.size() == 0">
+                1 = 0
+            </if>
+        </where>
+    </select>
+</mapper>

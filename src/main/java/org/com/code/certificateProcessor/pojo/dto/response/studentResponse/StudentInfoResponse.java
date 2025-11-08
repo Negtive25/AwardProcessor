@@ -1,0 +1,20 @@
+package org.com.code.certificateProcessor.pojo.dto.response.studentResponse;
+
+import lombok.*;
+
+import java.time.LocalDate;
+
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+public class StudentInfoResponse{
+    private String studentId;
+    private String name;
+    private String college;
+    private String major;
+    private LocalDate createdAt;
+    private LocalDate updatedAt;
+    private Double sumOfScore;
+}

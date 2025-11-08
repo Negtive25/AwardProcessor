@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.com.code.certificateProcessor.mapper.AdminMapper">
+    <select id="getAdminAuth" resultType="Admin">
+        select username,password,auth from admin where username=#{username}
+    </select>
+
+    <insert id="addAdmin" parameterType="Admin">
+        insert into admin(username,password,fullName,auth)
+        values(#{username},#{password},#{fullName},#{auth})
+    </insert>
+
+    <select id="getAdminByUserName" resultType="Admin">
+        select id,username,fullName,auth,createdAt,updatedAt from admin where username=#{username}
+    </select>
+
+    <update id="updateAdminInfo" parameterType="Admin">
+        update admin
+        <set>
+            <if test="password != null and password != ''">
+                password = #{password},
+            </if>
+            <if test="fullName != null and fullName != ''">
+                fullName = #{fullName},
+            </if>
+        </set>
+        where username = #{username}
+    </update>
+
+    <select id="getLatterAdmin" resultType="Admin">
+        select id,username,fullName,auth,createdAt,updatedAt
+        from admin
+        where id > #{lastId} and auth != 'Super_Admin'
+        order by id asc
+        limit #{pageSize}
+    </select>
+
+    <select id="getPreviousAdmin" resultType="Admin">
+        select id,username,fullName,auth,createdAt,updatedAt
+        from admin
+        where id &lt; #{lastId} and auth != 'Super_Admin'
+        order by id desc
+        limit #{pageSize}
+    </select>
+
+    <update id="updateAdminAuth">
+        update admin
+        set auth = #{auth}
+        where username = #{username} and auth != 'Super_Admin'
+    </update>
+</mapper>

@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://mysql:3306/award?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: root
+    password: ${MYSQL_PASSWORD}
+  data:
+    redis:
+      host: redis
+      port: 6379
+      database: 1
+      password: ${REDIS_PASSWORD}
+
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
+  elasticsearch:
+    host: http://139.196.22.247:9200
+    apiKey: ${ELASTICSEARCH_API_KEY}
+  ai:
+    dashscope:
+      api-key:
+        ${DASH_SCOPE_API_KEY}
+  jackson:
+    # 当属性值为null时，不序列化该属性
+    # null 字段不会传给 ES，不会覆盖或清空旧值
+    default-property-inclusion: non_null
+
+logging:
+  level:
+    dev:
+      langchain4j=DEBUG:
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: org.com.code.certificateProcessor.pojo
+
+rocketmq:
+  name-server: rocketmq:9876
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT}
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+    bucketName: ${ALIYUN_OSS_BUCKET_NAME}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
