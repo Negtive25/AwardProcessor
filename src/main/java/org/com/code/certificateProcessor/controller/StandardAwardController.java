@@ -5,11 +5,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.com.code.certificateProcessor.pojo.dto.request.standardAwardRequest.CreateAndUpdateStandardAwardListRequest;
+import org.com.code.certificateProcessor.pojo.dto.request.standardAwardRequest.CursorFilteredQueryStandardAwardRequest;
 import org.com.code.certificateProcessor.pojo.dto.request.standardAwardRequest.DeleteStandardAwardListRequest;
+import org.com.code.certificateProcessor.pojo.dto.request.standardAwardRequest.StandardAwardRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.standardAwardResponse.AdminStandardAwardInfoResponse;
 import org.com.code.certificateProcessor.pojo.dto.response.standardAwardResponse.BaseStandardAwardInfoResponse;
 import org.com.code.certificateProcessor.pojo.validation.group.CreateGroup;
 import org.com.code.certificateProcessor.pojo.validation.group.DeleteGroup;
+import org.com.code.certificateProcessor.pojo.validation.group.GetGroup;
 import org.com.code.certificateProcessor.pojo.validation.group.UpdateGroup;
 import org.com.code.certificateProcessor.pojo.dto.request.*;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
@@ -39,33 +42,35 @@ public class StandardAwardController {
         return ResponseEntity.ok(standardAwardInfoResponse);
     }
 
-    /**
-     * 获取奖状列表
-     * @param cursorPageRequest
-     * @return
-     */
-    @PostMapping("/cursorGetBatchByAdmin")
-    public ResponseEntity<Object> cursorGetBatchByAdmin(
+
+    @PostMapping("/cursorFilteredGetBatchByAdmin")
+    public ResponseEntity<Object> cursorFilteredGetBatchByAdmin(
             @RequestBody
-            @Valid
+            @Validated({GetGroup.class})
             @NotNull
-            CursorPageRequest cursorPageRequest) {
+            CursorFilteredQueryStandardAwardRequest queryStandardAwardRequest) {
 
         CursorPageResponse<? extends BaseStandardAwardInfoResponse> cursorPageResponse
-                = standardAwardService.cursorQueryStandardAward(cursorPageRequest,null);
+                = standardAwardService.cursorQueryStandardAward(
+                        queryStandardAwardRequest.getCursorPageRequest(),
+                        queryStandardAwardRequest.getStandardAwardRequest(),
+                        null);
         return ResponseEntity.ok(cursorPageResponse);
     }
 
-    @PostMapping("/cursorGetBatchByStudent")
-    public ResponseEntity<Object> cursorGetBatchByStudent(
+    @PostMapping("/cursorFilteredGetBatchByStudent")
+    public ResponseEntity<Object> cursorFilteredGetBatchByStudent(
             @RequestBody
-            @Valid
+            @Validated(GetGroup.class)
             @NotNull
-            CursorPageRequest cursorPageRequest) {
+            CursorFilteredQueryStandardAwardRequest queryStandardAwardRequest) {
 
         String studentId = SecurityContextHolder.getContext().getAuthentication().getName();
         CursorPageResponse<? extends BaseStandardAwardInfoResponse> cursorPageResponse
-                = standardAwardService.cursorQueryStandardAward(cursorPageRequest,studentId);
+                = standardAwardService.cursorQueryStandardAward(
+                        queryStandardAwardRequest.getCursorPageRequest(),
+                        queryStandardAwardRequest.getStandardAwardRequest(),
+                        studentId);
         return ResponseEntity.ok(cursorPageResponse);
     }
 

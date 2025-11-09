@@ -26,6 +26,7 @@ public class AwardSubmission {
   private Double finalScore;
   private String reason;
   private List<Map<String, Object>> suggestion;
+  private String duplicateSubmissionId;
   private DuplicateCheckResult duplicateCheckResult;
   private String reviewedBy;
   private LocalDate submittedAt;

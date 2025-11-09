@@ -8,6 +8,7 @@ import java.util.List;
 
 @Mapper
 public interface StudentMapper {
+    Boolean ifStudentExist(String studentId);
     Student getStudentAuth(String studentId);
     int addStudent(Student student);
 

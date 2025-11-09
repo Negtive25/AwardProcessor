@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
-import org.com.code.certificateProcessor.pojo.validation.AtLeastOneStringNotBlank;
+import org.com.code.certificateProcessor.pojo.validation.AtLeastOneIsValid;
 import org.com.code.certificateProcessor.pojo.validation.group.CreateGroup;
 import org.com.code.certificateProcessor.pojo.validation.group.SignInGroup;
 import org.com.code.certificateProcessor.pojo.validation.group.UpdateGroup;
@@ -16,7 +16,7 @@ import org.com.code.certificateProcessor.pojo.validation.ValidPassword;
 @NoArgsConstructor
 @AllArgsConstructor
 
-@AtLeastOneStringNotBlank(
+@AtLeastOneIsValid(
         fieldNames = {"password", "fullName"},
         message = "更新时候 password, fullName 中至少要提供一项",
         groups = UpdateGroup.class

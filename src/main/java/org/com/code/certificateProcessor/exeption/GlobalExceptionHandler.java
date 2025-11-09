@@ -43,7 +43,7 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors()
                 .forEach(e -> errors.put(e.getField(), e.getDefaultMessage()));
 
-        // 类级别错误（比如你的 @AtLeastOneStringNotBlank）
+        // 类级别错误（比如你的 @AtLeastOneIsValid）
         ex.getBindingResult().getGlobalErrors()
                 .forEach(e -> errors.put("global", e.getDefaultMessage()));
 

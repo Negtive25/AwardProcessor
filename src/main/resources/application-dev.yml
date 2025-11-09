@@ -25,6 +25,7 @@ spring:
       api-key:
         ${DASH_SCOPE_API_KEY}
   jackson:
+    # 它只影响 序列化（对象 → JSON），不影响 反序列化（JSON → 对象）。
     # 当属性值为null时，不序列化该属性
     # null 字段不会传给 ES，不会覆盖或清空旧值
     default-property-inclusion: non_null

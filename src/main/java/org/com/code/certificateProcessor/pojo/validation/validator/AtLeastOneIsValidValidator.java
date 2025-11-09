@@ -2,16 +2,16 @@ package org.com.code.certificateProcessor.pojo.validation.validator;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import org.com.code.certificateProcessor.pojo.validation.AtLeastOneStringNotBlank;
+import org.com.code.certificateProcessor.pojo.validation.AtLeastOneIsValid;
 
 import java.lang.reflect.Field;
 
-public class AtLeastOneStringNotBlankValidator implements ConstraintValidator<AtLeastOneStringNotBlank, Object> {
+public class AtLeastOneIsValidValidator implements ConstraintValidator<AtLeastOneIsValid, Object> {
 
     private String[] fieldNames;
 
     @Override
-    public void initialize(AtLeastOneStringNotBlank constraintAnnotation) {
+    public void initialize(AtLeastOneIsValid constraintAnnotation) {
         this.fieldNames = constraintAnnotation.fieldNames();
     }
 
@@ -23,10 +23,11 @@ public class AtLeastOneStringNotBlankValidator implements ConstraintValidator<At
                 field.setAccessible(true); // 允许访问私有字段
 
                 Object subObject = field.get(object);
-                if(subObject != null&&!((String)subObject).isEmpty()){
-                    return true;
+                if(subObject != null){
+                    if(!(object instanceof String) || !((String)subObject).isEmpty()){
+                        return true;
+                    }
                 }
-
             }
         } catch (Exception e) {
             return false;

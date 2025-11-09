@@ -17,12 +17,11 @@ import java.util.Map;
 public class AwardInfo {
     private String studentName;
     private String awardName;
-    private String awardCategory;
-    private String awardLevel;
-    private Long awardScore;
     private LocalDate awardDate;
-    private String reason;
+
     private String ifCertification;
+    private String isReadable;
+
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap<>();
@@ -32,20 +31,8 @@ public class AwardInfo {
         if(this.awardName != null){
             map.put("awardName", awardName);
         }
-        if(this.awardCategory != null){
-            map.put("awardCategory", awardCategory);
-        }
-        if(this.awardLevel != null){
-            map.put("awardLevel", awardLevel);
-        }
-        if(this.awardScore != null){
-            map.put("awardScore", awardScore);
-        }
         if(this.awardDate != null){
             map.put("awardDate", awardDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-        }
-        if(this.reason != null){
-            map.put("reason", reason);
         }
         return map;
     }

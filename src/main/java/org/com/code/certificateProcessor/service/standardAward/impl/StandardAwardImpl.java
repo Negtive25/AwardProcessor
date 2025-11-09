@@ -40,48 +40,50 @@ public class StandardAwardImpl extends BaseCursorPageService<StandardAward> impl
 
     @Override
     public AdminStandardAwardInfoResponse getStandardAwardById(String standardAwardId) {
-       try{
-           StandardAward standardAward = standardAwardMapper.getStandardAwardById(standardAwardId);
-           if(standardAward == null)
-               throw new ResourceNotFoundException("标准奖状不存在");
-           return standardAwardStructMap.toAdminStandardAwardInfoResponse(standardAward);
-       }catch (StandardAwardException e){
-           throw e;
-       }catch (ResourceNotFoundException e){
-           throw new StandardAwardException("查询标准奖状详情失败",e);
-       }catch (Exception e){
-           throw new StandardAwardException("查询标准奖状详情失败",e);
-       }
+        try {
+            StandardAward standardAward = standardAwardMapper.getStandardAwardById(standardAwardId);
+            if (standardAward == null)
+                throw new ResourceNotFoundException("标准奖状不存在");
+            return standardAwardStructMap.toAdminStandardAwardInfoResponse(standardAward);
+        } catch (StandardAwardException e) {
+            throw e;
+        } catch (ResourceNotFoundException e) {
+            throw new StandardAwardException("查询标准奖状详情失败", e);
+        } catch (Exception e) {
+            throw new StandardAwardException("查询标准奖状详情失败", e);
+        }
     }
 
     @Override
-    public CursorPageResponse<? extends BaseStandardAwardInfoResponse> cursorQueryStandardAward(CursorPageRequest cursorPageRequest,String studentId) {
-         String lastId = cursorPageRequest.getLastId();
-         int pageSize = cursorPageRequest.getPageSize();
+    public CursorPageResponse<? extends BaseStandardAwardInfoResponse> cursorQueryStandardAward(
+            CursorPageRequest cursorPageRequest,
+            StandardAwardRequest standardAwardRequest,
+            String studentId) {
 
-         try{
-           CursorPageResponse<StandardAward> cursorPage;
-           if(pageSize < 0)
-               cursorPage = fetchPage(lastId, - pageSize, standardAwardMapper::getPreviousStandardAward, StandardAward::getStandardAwardId);
-           else
-               cursorPage = fetchPage(lastId, pageSize, standardAwardMapper::getLatterStandardAward, StandardAward::getStandardAwardId);
+        try {
+            StandardAward standardAward = standardAwardStructMap.toStandardAward(standardAwardRequest);
+            CursorPageResponse<StandardAward> cursorPage;
+            if (cursorPageRequest.getPageSize() < 0)
+                cursorPage = fetchStandardAwardPage(cursorPageRequest,standardAward, standardAwardMapper::getPreviousFilteredStandardAward, StandardAward::getStandardAwardId);
+            else
+                cursorPage = fetchStandardAwardPage(cursorPageRequest,standardAward, standardAwardMapper::getLatterFilteredStandardAward, StandardAward::getStandardAwardId);
 
-           List<? extends BaseStandardAwardInfoResponse> standardAwardInfoResponses;
-           if(studentId == null)
-               standardAwardInfoResponses = standardAwardStructMap.toAdminStandardAwardInfoResponseList(cursorPage.getList());
-           else
-               standardAwardInfoResponses = standardAwardStructMap.toBaseStandardAwardInfoResponseList(cursorPage.getList());
+            List<? extends BaseStandardAwardInfoResponse> standardAwardInfoResponses;
+            if (studentId == null)
+                standardAwardInfoResponses = standardAwardStructMap.toAdminStandardAwardInfoResponseList(cursorPage.getList());
+            else
+                standardAwardInfoResponses = standardAwardStructMap.toBaseStandardAwardInfoResponseList(cursorPage.getList());
 
-           return new CursorPageResponse<>(standardAwardInfoResponses,cursorPage.getMinId(),cursorPage.getMaxId(),cursorPage.getHasNext());
-       }catch (Exception e){
-           throw new StandardAwardException("查询标准奖状列表失败",e);
-       }
+            return new CursorPageResponse<>(standardAwardInfoResponses, cursorPage.getMinId(), cursorPage.getMaxId(), cursorPage.getHasNext());
+        } catch (Exception e) {
+            throw new StandardAwardException("查询标准奖状列表失败", e);
+        }
     }
 
     @Override
     @Transactional
     public void addBatchStandardAward(List<StandardAwardRequest> standardAwardRequestList) {
-        try{
+        try {
             List<StandardAward> standardAwardList = standardAwardStructMap.toStandardAwardList(standardAwardRequestList);
 
             String createdBy = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -100,18 +102,18 @@ public class StandardAwardImpl extends BaseCursorPageService<StandardAward> impl
                     StandardAwardMapper::addStandardAward,
                     batchSize
             );
-                
+
             List<StandardAwardDocument> standardAwardDocumentList = standardAwardStructMap.toStandardAwardDocumentList(standardAwardList);
             esStandardAwardService.bulkCreateStandardAwardIndex(standardAwardDocumentList);
         } catch (Exception e) {
-            throw new StandardAwardException("批量创建标准奖状列表失败",e);
+            throw new StandardAwardException("批量创建标准奖状列表失败", e);
         }
     }
 
     @Override
     @Transactional
     public void updateBatchStandardAward(List<StandardAwardRequest> standardAwardRequestList) {
-        try{
+        try {
             List<StandardAward> standardAwardList = standardAwardStructMap.toStandardAwardList(standardAwardRequestList);
             String updatedBy = SecurityContextHolder.getContext().getAuthentication().getName();
             for (StandardAward standardAward : standardAwardList) {
@@ -130,26 +132,26 @@ public class StandardAwardImpl extends BaseCursorPageService<StandardAward> impl
             List<StandardAwardDocument> standardAwardDocumentList = standardAwardStructMap.toStandardAwardDocumentList(standardAwardList);
             esStandardAwardService.updateStandardAwardIndex(standardAwardDocumentList);
         } catch (Exception e) {
-            throw new StandardAwardException("批量更新标准奖状列表失败",e);
+            throw new StandardAwardException("批量更新标准奖状列表失败", e);
         }
     }
 
     @Override
     @Transactional
     public void deleteStandardAward(List<String> standardAwardIdList) {
-        try{
+        try {
             final int batchSize = 1000;
 
             batchExecutorService.executeBatch(
                     sqlSessionFactory,
-                    StandardAwardMapper.class,standardAwardIdList,
+                    StandardAwardMapper.class, standardAwardIdList,
                     StandardAwardMapper::deleteStandardAward,
                     batchSize
             );
 
             esStandardAwardService.deleteStandardAwardIndex(standardAwardIdList);
         } catch (Exception e) {
-            throw new StandardAwardException("删除标准奖状列表失败",e);
+            throw new StandardAwardException("删除标准奖状列表失败", e);
         }
     }
 }

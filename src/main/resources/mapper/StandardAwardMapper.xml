@@ -11,22 +11,84 @@
         where standardAwardId = #{standardAwardId}
     </select>
 
-    <select id="getLatterStandardAward" resultType="StandardAward">
+    <select id="getLatterFilteredStandardAward" resultType="StandardAward">
         select standardAwardId, name, category, level, score,
                isActive, createdBy, updatedBy, createdAt, updatedAt
         from standard_award
-        where standardAwardId &gt; #{lastId}
+        <where>
+            -- 游标分页条件
+            standardAwardId &gt; #{cursorPageRequest.lastId}
+
+            <!-- 用户自定义筛选条件 -->
+            <if test="standardAward!= null">
+                <if test="standardAward.standardAwardId != null and standardAward.standardAwardId != ''">
+                    and standardAwardId = #{standardAward.standardAwardId}
+                </if>
+                <if test="standardAward.name != null and standardAward.name != ''">
+                    and name like CONCAT(#{standardAward.name},'%')
+                </if>
+                <if test="standardAward.category != null and standardAward.category != ''">
+                    and category = #{standardAward.category}
+                </if>
+                <if test="standardAward.level != null and standardAward.level != ''">
+                    and level = #{standardAward.level}
+                </if>
+                <if test="standardAward.score != null">
+                    and score = #{standardAward.score}
+                </if>
+                <if test="standardAward.isActive != null">
+                    and isActive = #{standardAward.isActive}
+                </if>
+                <if test="standardAward.createdBy != null and standardAward.createdBy != ''">
+                    and createdBy = #{standardAward.createdBy}
+                </if>
+                <if test="standardAward.updatedBy != null and standardAward.updatedBy != ''">
+                    and updatedBy = #{standardAward.updatedBy}
+                </if>
+            </if>
+        </where>
         order by standardAwardId asc
-        limit #{pageSize}
+        limit #{cursorPageRequest.pageSize}
     </select>
 
-    <select id="getPreviousStandardAward" resultType="StandardAward">
+    <select id="getPreviousFilteredStandardAward" resultType="StandardAward">
         select standardAwardId, name, category, level, score,
                isActive, createdBy, updatedBy, createdAt, updatedAt
         from standard_award
-        where standardAwardId &lt; #{lastId}
+        <where>
+            -- 游标分页条件
+            standardAwardId &lt; #{cursorPageRequest.lastId}
+
+            <!-- 用户自定义筛选条件 -->
+            <if test="standardAward != null">
+                <if test="standardAward.standardAwardId != null and standardAward.standardAwardId != ''">
+                    and standardAwardId = #{standardAward.standardAwardId}
+                </if>
+                <if test="standardAward.name != null and standardAward.name != ''">
+                    and name like CONCAT(#{standardAward.name},'%')
+                </if>
+                <if test="standardAward.category != null and standardAward.category != ''">
+                    and category = #{standardAward.category}
+                </if>
+                <if test="standardAward.level != null and standardAward.level != ''">
+                    and level = #{standardAward.level}
+                </if>
+                <if test="standardAward.score != null">
+                    and score = #{standardAward.score}
+                </if>
+                <if test="standardAward.isActive != null">
+                    and isActive = #{standardAward.isActive}
+                </if>
+                <if test="standardAward.createdBy != null and standardAward.createdBy != ''">
+                    and createdBy = #{standardAward.createdBy}
+                </if>
+                <if test="standardAward.updatedBy != null and standardAward.updatedBy != ''">
+                    and updatedBy = #{standardAward.updatedBy}
+                </if>
+            </if>
+        </where>
         order by standardAwardId desc
-        limit #{pageSize}
+        limit #{cursorPageRequest.pageSize}
     </select>
 
     <insert id="addStandardAward" parameterType="StandardAward">

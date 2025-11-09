@@ -1,6 +1,7 @@
 package org.com.code.certificateProcessor.rocketMQ.consumer;
 
 import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.spring.annotation.ConsumeMode;
 import org.com.code.certificateProcessor.ElasticSearch.ESConst;
 import org.com.code.certificateProcessor.pojo.modelInfo.AwardClassification;
 import org.com.code.certificateProcessor.pojo.modelInfo.DeduplicationResult;
@@ -26,8 +27,10 @@ import org.com.code.certificateProcessor.pojo.enums.DuplicateCheckResult;
 import org.com.code.certificateProcessor.rocketMQ.MQConstants;
 import org.com.code.certificateProcessor.service.file.FileManageService;
 import org.com.code.certificateProcessor.service.file.OSSService;
+import org.com.code.certificateProcessor.util.mapKey.AwardInfoMapKey;
 import org.com.code.certificateProcessor.util.mapKey.AwardSubmissionMapKey;
 import org.com.code.certificateProcessor.util.mapKey.FileUploadMapKey;
+import org.com.code.certificateProcessor.util.validator.AIResponseDateValidator;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -35,6 +38,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets; // 3. 导入 Charsets
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +49,8 @@ import java.util.concurrent.TimeUnit;
         consumerGroup = MQConstants.Consumer.STUDENT_AWARD_SUBMISSION_CONSUMER,
         selectorExpression = MQConstants.Tag.STUDENT_AWARD_SUBMISSION,
         messageModel = MessageModel.CLUSTERING,
-        maxReconsumeTimes = 3
+        maxReconsumeTimes = 3,
+        consumeMode = ConsumeMode.ORDERLY
 )
 public class studentAwardSubmissionConsumer implements RocketMQListener<MessageExt> {
     @Autowired
@@ -66,8 +72,6 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
     @Autowired
     private OSSService oSSService;
 
-    private static final String lockKey = "lock:studentId:%s";
-
     @Override
     public void onMessage(MessageExt message) {
         String completeUploadInfoJsonMessage = new String(message.getBody(), StandardCharsets.UTF_8);
@@ -78,28 +82,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
         Map<String, Object> completeUploadInfo = JSONObject.parseObject(completeUploadInfoJsonMessage, Map.class);
         String submissionId = completeUploadInfo.get(FileUploadMapKey.submissionId).toString();
 
-        String studentId = completeUploadInfo.get(FileUploadMapKey.studentId).toString();
-        String studentLockKey = String.format(lockKey, studentId);
-        Boolean lockAcquired = false;
         try {
-            // 1. 尝试获取锁
-            // setIfAbsent 对应 SETNX
-            // 我们设置一个过期时间（例如60秒），防止死锁
-            lockAcquired = objectRedisTemplate.opsForValue().setIfAbsent(
-                    studentLockKey,
-                    "processing", // value 不重要，存在即可
-                    60,           // 60秒后自动过期
-                    TimeUnit.SECONDS
-            );
-
-            // 2. 判断是否获取成功
-            if (lockAcquired == null || !lockAcquired) {
-                // 获取锁失败，说明有另一个消费者正在处理
-                // 抛出异常，触发RocketMQ重试
-                throw new RocketmqException("获取学生 " + studentId + " 的锁失败，稍后重试");
-            }
-
-            //3. 如果获取锁成功,则开始业务逻辑
 
             // 我们只“看” (GET)，不“删” (DELETE)
             Object revocationCheck = objectRedisTemplate.opsForHash().get(FileManageService.IfSubmissionGotRevoked, submissionId);
@@ -120,7 +103,40 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
             AwardInfo awardInfo;
             try {
                 String ocrResult = ocrService.getOCRResult(temporaryCompressedImageUrl);
-                awardInfo = JSONObject.parseObject(ocrResult, AwardInfo.class);
+                // 1. 先将 AI 响应解析为通用的 Map
+                Map<String, Object> ocrMap = JSONObject.parseObject(ocrResult, Map.class);
+                if (ocrMap == null) {
+                    throw new AIModelException("AI 返回了空的 JSON 响应");
+                }
+
+                // 2. 从 Map 中提取可能存在问题的日期字符串
+                String awardDateStr = null;
+                if (ocrMap.containsKey(AwardInfoMapKey.awardDate)) {
+                    Object dateObj = ocrMap.get(AwardInfoMapKey.awardDate);
+                    if (dateObj != null) {
+                        awardDateStr = dateObj.toString();
+                    }
+                }
+
+                // 3. 使用校验类来解析和清洗日期
+                LocalDate validDate = AIResponseDateValidator.parseAndCleanDate(awardDateStr);
+
+                // 4. 将清洗后的结果放回 Map 中
+                // 这一步至关重要：
+                // - 如果日期有效，我们将其转为 fastjson 必定认识的标准格式。
+                // - 如果日期无效，我们将其从 Map 中移除或设为 null。
+                // 这样，fastjson 在第 5 步进行解析时，绝对不会再遇到 "2000-00-00"。
+                if (validDate != null) {
+                    // 转回 fastjson 认识的标准 ISO 字符串格式
+                    ocrMap.put(AwardInfoMapKey.awardDate, validDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+                } else {
+                    // 设为 null，AwardInfo.java 中的 awardDate 字段将保持 null
+                    ocrMap.put(AwardInfoMapKey.awardDate, null);
+                }
+
+                // 5. 将 清洗过 的 Map 转换为最终的 AwardInfo 对象
+                // 这一步现在是绝对安全的
+                awardInfo = JSONObject.parseObject(JSONObject.toJSONString(ocrMap), AwardInfo.class);
             } catch (Exception e) {
                 throw new AIModelException("视觉模型分析图片发生错误", e);
             }
@@ -134,12 +150,15 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
 
             if(awardInfo.getIfCertification().equals("No")){
                 awardSubmission.setReason("不是一张奖状或证书");
-            }else if(awardInfo.getStudentName() == null){
+            }else if(awardInfo.getIsReadable().equals("No")){
+                awardSubmission.setReason("图片是奖状或证书，但内容模糊无法准确识别。");
+            }else if(awardInfo.getStudentName() == null||awardInfo.getStudentName().isEmpty()){
                 awardSubmission.setReason("图片中没有出现学生姓名");
             }else if(!awardInfo.getStudentName().equals(studentName)){
                 awardSubmission.setReason("学生姓名不匹配");
-            }
-            else{
+            }else if (awardInfo.getAwardName() == null||awardInfo.getAwardName().isEmpty()){
+                awardSubmission.setReason("图片中没有出现奖项名称");
+            }else{
                 /**
                  * 如果是奖状，则 awardInfo 包含以下字段信息
                  *     {
@@ -174,9 +193,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
                 List<AwardSubmission> awardSubmissions = awardSubmissionMapper.getSubmissionsForDuplicateCheck(
                         completeUploadInfo.get(AwardSubmissionMapKey.studentId).toString(),
                         List.of(AwardSubmissionStatus.AI_APPROVED.toString(),
-                                AwardSubmissionStatus.AI_REJECTED.toString(),
-                                AwardSubmissionStatus.MANUAL_APPROVED.toString(),
-                                AwardSubmissionStatus.MANUAL_REJECTED.toString()
+                                AwardSubmissionStatus.MANUAL_APPROVED.toString()
                         )
                 );
 
@@ -191,6 +208,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
                             .append(">，认为奖项重复的理由 ：").append(deduplicationResult.getReasoning());
 
                     awardSubmission.setDuplicateCheckResult(DuplicateCheckResult.IS_DUPLICATE);
+                    awardSubmission.setDuplicateSubmissionId(deduplicationResult.getMatchedAwardId());
                     awardSubmission.setReason(reasonBuilder.toString());
                 } else{
                     reasonBuilder.append("查重结果 : ").append("可能相似的旧奖项名称为 <")
@@ -221,7 +239,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
             AwardSubmission awardSubmission = AwardSubmission.builder()
                     .submissionId(submissionId)
                     .status(AwardSubmissionStatus.ERROR_NEED_TO_MANUAL_REVIEW)
-                    .reason("图片处理异常: " + e.getMessage())
+                    .reason(e.getMessage())
                     .build();
             awardSubmissionMapper.updateAwardSubmission(awardSubmission);
         }
@@ -251,14 +269,7 @@ public class studentAwardSubmissionConsumer implements RocketMQListener<MessageE
                 LoggerFactory.getLogger(studentAwardSubmissionConsumer.class)
                         .warn("消息处理失败, submissionId: {}  尝试次数: {}/3 即将重试...", submissionId,retryCount + 1, e);
 
-                // 抛出运行时异常，RocketMQ将自动重试此消息
-                throw new RocketmqException("图片处理失败，触发重试", e);
-            }
-
-        }finally {
-            // 5. 无论成功与否，只要获取过锁，就必须释放锁
-            if (lockAcquired != null && lockAcquired) {
-                objectRedisTemplate.delete(lockKey);
+                throw e;
             }
         }
     }

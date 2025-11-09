@@ -2,6 +2,7 @@ package org.com.code.certificateProcessor.service.awardSubmission;
 
 import org.com.code.certificateProcessor.pojo.dto.StudentScoreDto;
 import org.com.code.certificateProcessor.pojo.dto.request.CursorPageRequest;
+import org.com.code.certificateProcessor.pojo.dto.response.awardSubmissionResponse.AdminAwardSubmissionResponse;
 import org.com.code.certificateProcessor.pojo.dto.response.awardSubmissionResponse.BaseAwardSubmissionResponse;
 import org.com.code.certificateProcessor.pojo.dto.request.ReviewSubmissionRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;

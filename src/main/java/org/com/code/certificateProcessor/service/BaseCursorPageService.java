@@ -1,6 +1,8 @@
 package org.com.code.certificateProcessor.service;
 
+import org.com.code.certificateProcessor.pojo.dto.request.CursorPageRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
+import org.com.code.certificateProcessor.pojo.entity.StandardAward;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -25,6 +27,16 @@ public abstract class BaseCursorPageService<T> {
     ) {
         List<T> list = queryExecutor.query(lastStrId, pageSize,status,isAdmin,studentId);
         return getTCursorPageResponse(pageSize, cursorExtractor, list);
+    }
+
+    public CursorPageResponse<T> fetchStandardAwardPage(
+            CursorPageRequest cursorPageRequest,
+            StandardAward standardAward,
+            CursorQueryStandardAwardExecutor queryExecutor,
+            Function<T, String> cursorExtractor
+            ){
+        List<T> list = queryExecutor.query(cursorPageRequest, standardAward);
+        return getTCursorPageResponse(cursorPageRequest.getPageSize(), cursorExtractor, list);
     }
 
     public CursorPageResponse<T> fetchPage(
@@ -64,5 +76,9 @@ public abstract class BaseCursorPageService<T> {
     @FunctionalInterface
     public interface CursorQueryExecutor<T> {
         List<T> query(String lastStrId, Integer pageSize);
+    }
+    @FunctionalInterface
+    public interface CursorQueryStandardAwardExecutor<T> {
+        List<T> query(CursorPageRequest cursorPageRequest, StandardAward standardAward);
     }
 }

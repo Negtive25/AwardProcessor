@@ -167,5 +167,4 @@
         and status = 'MANUAL_APPROVED'
         group by studentId
     </select>
-
 </mapper>

@@ -3,6 +3,10 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.com.code.certificateProcessor.mapper.StudentMapper">
+    <select id="ifStudentExist" resultType="Boolean">
+        select exists(select 1 from student where studentId = #{studentId})
+    </select>
+
     <select id="getStudentAuth" resultType="Student">
         select studentId,password,auth from student where studentId=#{studentId}
     </select>

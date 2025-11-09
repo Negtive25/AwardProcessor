@@ -2,13 +2,17 @@ package org.com.code.certificateProcessor.controller;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import org.com.code.certificateProcessor.mapper.StudentMapper;
 import org.com.code.certificateProcessor.pojo.dto.request.adminRequest.AdminRequest;
 import org.com.code.certificateProcessor.pojo.dto.request.adminRequest.UpdateAdminAuthRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.adminResponse.AdminInfoResponse;
 import org.com.code.certificateProcessor.pojo.dto.response.adminResponse.AdminSignInResponse;
 import org.com.code.certificateProcessor.pojo.dto.response.adminResponse.CreateAdminResponse;
+import org.com.code.certificateProcessor.pojo.dto.response.awardSubmissionResponse.AdminAwardSubmissionResponse;
+import org.com.code.certificateProcessor.pojo.entity.AwardSubmission;
 import org.com.code.certificateProcessor.pojo.validation.group.CreateGroup;
 import org.com.code.certificateProcessor.pojo.validation.group.SignInGroup;
 import org.com.code.certificateProcessor.pojo.validation.group.UpdateGroup;
@@ -40,6 +44,9 @@ public class AdminController {
     AwardSubmissionService awardSubmissionService;
     @Autowired
     private StudentService studentService;
+    @Autowired
+    StudentMapper studentMapper;
+
 
     @PostMapping("/signUp")
     public ResponseEntity<Object> signUp(
@@ -109,6 +116,11 @@ public class AdminController {
             List<@NotNull @ValidEnum(enumClass = AwardSubmissionStatus.class) String> status,
             @NotNull
             String studentId) {
+        Boolean isExist = studentMapper.ifStudentExist(studentId);
+        if(!isExist){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("学生不存在");
+        }
+
         CursorPageResponse<? extends BaseAwardSubmissionResponse> submissionProgress =
                 awardSubmissionService.cursorQuerySubmissionByStatus(cursorPageRequest,status, true,studentId);
 

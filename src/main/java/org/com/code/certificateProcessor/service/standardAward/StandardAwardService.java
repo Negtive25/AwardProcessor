@@ -5,12 +5,13 @@ import org.com.code.certificateProcessor.pojo.dto.response.standardAwardResponse
 import org.com.code.certificateProcessor.pojo.dto.response.standardAwardResponse.BaseStandardAwardInfoResponse;
 import org.com.code.certificateProcessor.pojo.dto.request.standardAwardRequest.StandardAwardRequest;
 import org.com.code.certificateProcessor.pojo.dto.response.CursorPageResponse;
+import org.com.code.certificateProcessor.pojo.entity.StandardAward;
 
 import java.util.List;
 
 public interface StandardAwardService {
     AdminStandardAwardInfoResponse getStandardAwardById(String standardAwardId);
-    CursorPageResponse<? extends BaseStandardAwardInfoResponse> cursorQueryStandardAward(CursorPageRequest cursorPageRequest,String studentId);
+    CursorPageResponse<? extends BaseStandardAwardInfoResponse> cursorQueryStandardAward(CursorPageRequest cursorPageRequest, StandardAwardRequest standardAwardRequest, String studentId);
     void addBatchStandardAward(List<StandardAwardRequest> standardAwardList);
     void updateBatchStandardAward(List<StandardAwardRequest> standardAwardList);
     void deleteStandardAward(List<String> standardAwardIdList);
