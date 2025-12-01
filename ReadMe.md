@@ -47,7 +47,7 @@
 ### 4\.代码规范与安全性
 
   * **防御性编程**: 全局异常处理 (`GlobalExceptionHandler`)，自定义注解校验 (`@ValidPassword`, `@ValidEnum`, `@AtLeastOneIsValid`)。
-  * **安全性**: 禁用 Session，采用无状态 JWT 认证；OSS 链接采用预签名 URL (Presigned URL) 且配合图片压缩参数，防止原始链接泄露和盗链，同时减少传输带宽。
+  * **安全性**: 禁用传统 Session，构建基于 Redis 的可撤销 JWT 认证体系，实现对 Token 的服务端主动管控（如强制下线、即时封禁）；OSS 链接采用预签名 URL (Presigned URL) 且配合图片压缩参数，防止原始链接泄露和盗链，同时减少传输带宽。
   * **设计模式**: 广泛使用 Builder 模式构建对象，策略模式处理不同的登录类型，模板方法模式处理分页逻辑。
 
 -----
